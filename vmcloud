@@ -111,11 +111,9 @@ def fetch(uri_str, machine, limit = 10)
   }
 
   #Build a new request, this time an HTTP GET, to grab a value from the API. Supply both the API call and the headers variable we just put together
-  req = Net::HTTP::Get.new('/api/query?type=adminVApp', @headers)
-
   #send the new request and grab the response again
-  response = @http.request(req)
-  find_machine_node response, machine
+
+  find_machine_node @http.request( Net::HTTP::Get.new('/api/query?type=adminVApp', @headers)), machine
 
   #Finally, build one more request to send an HTTP DELETE call to /api/sessions to kill your session
   req = Net::HTTP::Delete.new('/api/sessions', @headers)
