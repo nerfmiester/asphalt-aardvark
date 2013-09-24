@@ -3,9 +3,43 @@
 require 'net/http'
 require 'uri'
 require 'openssl'
+require 'getoptlong'
 require 'nokogiri'
 #Here we are ignoring any issues that may arise with SSL certificates
+
 OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+
+def usage
+  puts "\nUsage: vmcloud\n\n"
+  puts "\t-m , --machinename\t <machinename>\tThe name of the machine to retrieve the metadata for\n"
+  puts "\t-h , --help\t \tShow this help screen.\n"
+  puts "\n"
+  puts "Defaults\n\n"
+  puts "\t./vmcloud -m machine1 \t\t get the metadata for a machine named \"machine1\"\n"
+
+
+  exit
+end
+
+
+
+getoptlong = GetoptLong.new(
+    ['--help','-h',   GetoptLong::NO_ARGUMENT],
+    ['--verbose',     GetoptLong::NO_ARGUMENT],
+    ['--machinename','-m', GetoptLong::REQUIRED_ARGUMENT]
+)
+
+getoptlong.each do |opt,arg|
+  case opt
+    when '--help'
+      usage
+    when '--machinename'
+      @machinename=arg
+    when '--verbose'
+      @verbose=true
+  end
+end
+end
 
 def find_machine_node response,  machine_name
 
@@ -23,17 +57,15 @@ def get_metadata_for_machine ref
   response = @http.request(request)
   @doc = Nokogiri::XML(response.body)
   rooter = @doc.root
-  allter= rooter.xpath("//vcloud:Key", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+  allter= rooter.xpath("//vcloud:Value", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
   #puts allter
   allter.each do |kk|
     puts kk.content
   end
-  find= @doc.xpath(".//Value")
-
 end
 
 #main fetch function takes an initial URL to fetch from and a limit for number of redirects to follow
-def fetch(uri_str, limit = 10)
+def fetch(uri_str, machine, limit = 10)
   raise ArgumentError, 'HTTP redirect too deep' if limit == 0
 
   #Parse URL into URI object
@@ -53,12 +85,8 @@ def fetch(uri_str, limit = 10)
   req.add_field 'Accept', 'application/*+xml;version=1.5'
   req.add_field 'Content-type', 'application/*+xml;version=1.5'
   #Send the request we created earlier, and capture the HTTP response
-  #req.each_header.each do |kk,vv|
-  #  puts "kk=> #{kk}, vv=> #{vv}"
-  #end
   response = @http.request(req)
   #Start case to handle various HTTP responses
-  #puts "auth code  => #{response.header['x-vcloud-authorization']}"
   case response
     #If authentication is successful, a token is returned in the response header. So if we get an HTTP 200 response from the vCloud server, then we can grab the "x-vcloud-authorization" token from the header
     when Net::HTTPSuccess     then
@@ -81,55 +109,17 @@ def fetch(uri_str, limit = 10)
   }
 
   #Build a new request, this time an HTTP GET, to grab a value from the API. Supply both the API call and the headers variable we just put together
-  #req = Net::HTTP::Get.new('/api/query?type=vApp', headers)
-  #req = Net::HTTP::Get.new('/api/admin', headers)
-  #https://10.163.4.32/api/query?type=adminVApp
   req = Net::HTTP::Get.new('/api/query?type=adminVApp', @headers)
-  #req = Net::HTTP::Get.new('/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5/metadata', headers)
-  #https://10.163.4.32/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5
-
-
-
-
 
   #send the new request and grab the response again
   response = @http.request(req)
-  find_machine_node response, "POOL"
-  @doc = Nokogiri::XML(response.body)
-  root = @doc.root
-  #puts root
-  #puts root.at_xpath("@href")
-  #puts root['href']
-  allter= root.xpath("//vcloud:Key", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
-  #puts allter
-  allter.each do |kk|
-    #puts kk.content
-  end
-  find= @doc.xpath(".//Value")
-  #puts "@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-  #doc.xpath("//aws:Item/aws:Attribute[Name='Foo']/aws:Value", {"aws" => "http://sdb.amazonaws.com/doc/2007-11-07/"})
-  #puts find
-  #puts response.body
-  case response
-    when Net::HTTPSuccess     then
-      #In my case, the value I wanted was returned in the XML body that was returned, so if the server responds with HTTP 200 I just grab the entire response body and pass it to a variable
-      result = response.body()
-    #same as previous
-    when Net::HTTPFound        then
-      fetch(response['location'], limit - 1)
-    #same as previous
-    when Net::HTTPRedirection then fetch(response['location'], limit - 1)
-    else
-      puts response.error!
-  end
+  find_machine_node response, machine
 
   #Finally, build one more request to send an HTTP DELETE call to /api/sessions to kill your session
   req = Net::HTTP::Delete.new('/api/sessions', @headers)
   @http.request(req)
 
-  #Again, in my case, I wanted to confirm that the VM was using a specific virtual hardware version (vmx-08), so I did a quick string match to confirm this
-  result.include?('<vssd:VirtualSystemType>vmx-08</vssd:VirtualSystemType>')
-
 end
 
-print fetch('https://10.163.4.32:443')
+main
+fetch('https://10.163.4.32:443', @machinename)
