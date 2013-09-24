@@ -8,10 +8,9 @@ require 'nokogiri'
 OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 
 def find_machine_node response,  machine_name
-   machine= Nokogiri::XML(response.body)
 
-   mac_root=machine.root
-   mac_nodes= mac_root.xpath("//vcloud:AdminVAppRecord", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+   mac_nodes=Nokogiri::XML(response.body).root.xpath("//vcloud:AdminVAppRecord", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+
    mac_nodes.each do |gg|
     puts gg['name']
     puts gg['href']
