@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+require 'getoptlong'
+require 'nokogiri'
+require 'pathname'
+
+def usage
+  puts "\nUsage: nokogiri\n\n"
+  puts "\t-f , --filename\t <filename>\tThe name of the file to load\n"
+  puts "\t-s , --search\t <searchstring>\tThe search string.\n"
+  puts "\n"
+  puts "Defaults\n\n"
+  puts "\t./nokogiri.rb -f /path/to/file/file.xml -s fred \t\t search for fred in xml file file.xml\n"
+
+
+  exit
+end
+
+def error error_text
+  puts error_text
+  exit
+end
+
+def main
+
+
+  getoptlong = GetoptLong.new(
+      ['--help','-h',   GetoptLong::NO_ARGUMENT],
+      ['--verbose',     GetoptLong::NO_ARGUMENT],
+      ['--filename','-f', GetoptLong::REQUIRED_ARGUMENT],
+      ['--search','-s', GetoptLong::OPTIONAL_ARGUMENT]
+  )
+
+  getoptlong.each do |opt,arg|
+    case opt
+      when '--help'
+        usage
+      when '--filename'
+        @filename=arg
+      when '--verbose'
+        @verbose=true
+      when '--search'
+        @search=arg
+    end
+  end
+end
+
+
+def load_xml filename
+
+  Pathname.new(filename).exist? ? f=File.open(filename) : error("No file Exists called #{filename}")
+  @xml_doc = Nokogiri::XML(f)
+
+
+end
+
+
+def search_xml search
+
+  selected = @xml_doc.xpath("//books:book/books:author", {'books' => "http://pearson.com/books/"})
+
+  selected.each do |doc|
+
+    doc.content.size> 12 ? puts(doc.content) : puts("too small")
+
+  end
+
+end
+
+main
+load_xml @filename
+search_xml @search

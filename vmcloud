@@ -1,0 +1,141 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'uri'
+require 'openssl'
+require 'nokogiri'
+#Here we are ignoring any issues that may arise with SSL certificates
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+
+def find_machine_node response,  machine_name
+   machine= Nokogiri::XML(response.body)
+
+   mac_root=machine.root
+   mac_nodes= mac_root.xpath("//vcloud:AdminVAppRecord", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+   mac_nodes.each do |gg|
+    puts gg['name']
+    puts gg['href']
+     gg['name'] == machine_name ? get_metadata_for_machine(gg['href']) : "not matched"
+   end
+end
+
+def get_metadata_for_machine ref
+
+  puts ref
+
+  #Parse URL into URI object
+  request = Net::HTTP::Get.new('/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5/metadata', @headers)
+  #send the new request and grab the response again
+  response = @http.request(request)
+  @doc = Nokogiri::XML(response.body)
+  rooter = @doc.root
+  allter= rooter.xpath("//vcloud:Key", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+  #puts allter
+  allter.each do |kk|
+    puts kk.content
+  end
+  find= @doc.xpath(".//Value")
+
+end
+
+#main fetch function takes an initial URL to fetch from and a limit for number of redirects to follow
+def fetch(uri_str, limit = 10)
+  raise ArgumentError, 'HTTP redirect too deep' if limit == 0
+
+  #Parse URL into URI object
+  uri = URI.parse(uri_str)
+  #Create new Net::HTTP object
+  @http = Net::HTTP.new(uri.host, uri.port)
+  #Set the http object to use SSL
+  @http.use_ssl = true
+  #Ignore issues with SSL certs
+  @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+  #Start the http session
+  @http.start()
+  #Create an HTTP POST request to /api/sessions to authenticate
+  req = Net::HTTP::Post.new('/api/sessions')
+  #Set HTTP basic auth variables of username and password
+  req.basic_auth 'vcdadmin@System', 'P@ssw0rd1'
+  req.add_field 'Accept', 'application/*+xml;version=1.5'
+  req.add_field 'Content-type', 'application/*+xml;version=1.5'
+  #Send the request we created earlier, and capture the HTTP response
+  #req.each_header.each do |kk,vv|
+  #  puts "kk=> #{kk}, vv=> #{vv}"
+  #end
+  response = @http.request(req)
+  #Start case to handle various HTTP responses
+  #puts "auth code  => #{response.header['x-vcloud-authorization']}"
+  case response
+    #If authentication is successful, a token is returned in the response header. So if we get an HTTP 200 response from the vCloud server, then we can grab the "x-vcloud-authorization" token from the header
+    when Net::HTTPSuccess     then
+      authKey = response.header['x-vcloud-authorization']
+    #if we get an HTTPfound instead, we are probably getting redirected and should try to follow it. You may need to tweak this section to suit your use case
+    when Net::HTTPFound        then
+      #call the main fetch function again and decrement the overall redirect limit
+      fetch(response['location'], limit - 1)
+    #If we get an HTTP redirection, we are definitely getting redirected and should follow it
+    when Net::HTTPRedirection then fetch(response['location'], limit - 1)
+    else
+      #something went wrong - spit out whatever the response error is
+      puts response.error!
+  end
+
+  #Set the headers as a variable to be re-used later, including the authorization token we grabbed earlier
+  @headers = {
+      'Accept' => 'application/*+xml;version=1.5',
+      'x-vcloud-authorization' => "#{authKey}"
+  }
+
+  #Build a new request, this time an HTTP GET, to grab a value from the API. Supply both the API call and the headers variable we just put together
+  #req = Net::HTTP::Get.new('/api/query?type=vApp', headers)
+  #req = Net::HTTP::Get.new('/api/admin', headers)
+  #https://10.163.4.32/api/query?type=adminVApp
+  req = Net::HTTP::Get.new('/api/query?type=adminVApp', @headers)
+  #req = Net::HTTP::Get.new('/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5/metadata', headers)
+  #https://10.163.4.32/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5
+
+
+
+
+
+  #send the new request and grab the response again
+  response = @http.request(req)
+  find_machine_node response, "POOL"
+  @doc = Nokogiri::XML(response.body)
+  root = @doc.root
+  #puts root
+  #puts root.at_xpath("@href")
+  #puts root['href']
+  allter= root.xpath("//vcloud:Key", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
+  #puts allter
+  allter.each do |kk|
+    #puts kk.content
+  end
+  find= @doc.xpath(".//Value")
+  #puts "@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+  #doc.xpath("//aws:Item/aws:Attribute[Name='Foo']/aws:Value", {"aws" => "http://sdb.amazonaws.com/doc/2007-11-07/"})
+  #puts find
+  #puts response.body
+  case response
+    when Net::HTTPSuccess     then
+      #In my case, the value I wanted was returned in the XML body that was returned, so if the server responds with HTTP 200 I just grab the entire response body and pass it to a variable
+      result = response.body()
+    #same as previous
+    when Net::HTTPFound        then
+      fetch(response['location'], limit - 1)
+    #same as previous
+    when Net::HTTPRedirection then fetch(response['location'], limit - 1)
+    else
+      puts response.error!
+  end
+
+  #Finally, build one more request to send an HTTP DELETE call to /api/sessions to kill your session
+  req = Net::HTTP::Delete.new('/api/sessions', @headers)
+  @http.request(req)
+
+  #Again, in my case, I wanted to confirm that the VM was using a specific virtual hardware version (vmx-08), so I did a quick string match to confirm this
+  result.include?('<vssd:VirtualSystemType>vmx-08</vssd:VirtualSystemType>')
+
+end
+
+print fetch('https://10.163.4.32:443')
