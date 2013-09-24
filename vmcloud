@@ -9,21 +9,16 @@ OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 
 def find_machine_node response,  machine_name
 
-   mac_nodes=Nokogiri::XML(response.body).root.xpath("//vcloud:AdminVAppRecord", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"})
-
-   mac_nodes.each do |gg|
-    puts gg['name']
-    puts gg['href']
-     gg['name'] == machine_name ? get_metadata_for_machine(gg['href']) : "not matched"
+   Nokogiri::XML(response.body).root.xpath("//vcloud:AdminVAppRecord", {'vcloud' => "http://www.vmware.com/vcloud/v1.5"}).each do |node|
+     node['name'] == machine_name ? get_metadata_for_machine(node['href']) : next
    end
+
 end
 
 def get_metadata_for_machine ref
 
-  puts ref
-
-  #Parse URL into URI object
-  request = Net::HTTP::Get.new('/api/vApp/vapp-31750ca1-27b6-472f-95d4-7a0176f5fce5/metadata', @headers)
+  #Parse URL into URI object - deconstruct from the reference passed in from the call
+  request = Net::HTTP::Get.new("#{ref.slice((ref.index("api")-1),ref.size)}/metadata", @headers)
   #send the new request and grab the response again
   response = @http.request(request)
   @doc = Nokogiri::XML(response.body)
