@@ -11,18 +11,20 @@ OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 
 def usage
   puts "\nUsage: vmcloud\n\n"
-  puts "\t-m , --machinename\t <machinename>\tThe name of the machine to retrieve the metadata for\n"
-  puts "\t-h , --help\t \tShow this help screen.\n"
+  puts "\t-m , --machinename\t<machinename>\tThe name of the machine to retrieve the metadata for\n"
+  puts "\t-h , --help\t\t\t\tShow this help screen.\n"
   puts "\n"
   puts "Defaults\n\n"
-  puts "\t./vmcloud -m machine1 \t\t get the metadata for a machine named \"machine1\"\n"
+  puts "\t./vmcloud -m machine1 \t\t\tget the metadata for a machine named \"machine1\"\n"
+  puts "\n"
+  puts "\n"
 
 
   exit
 end
 
 
-
+def main
 getoptlong = GetoptLong.new(
     ['--help','-h',   GetoptLong::NO_ARGUMENT],
     ['--verbose',     GetoptLong::NO_ARGUMENT],
