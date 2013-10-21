@@ -24,3 +24,11 @@ require 'capistrano/deploy'
 
 # Loads custom tasks from `lib/capistrano/tasks' if you have any defined.
 Dir.glob('lib/capistrano/tasks/*.cap').each { |r| import r }
+
+server = '10.162.71.72'
+
+task :uptime do
+  on roles(:all) do |host|
+    info "#{host} has uptime #{capture(:uptime)}"
+  end
+end

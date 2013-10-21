@@ -1,0 +1,17 @@
+desc "this is a rake task"
+task :task1 do
+   puts "you did a task"
+end
+
+task :task2 do
+   puts "you did a second task"
+end
+
+task :task3, [:first_arg, :second_arg] => ["task1" , "task2"] do |t, args|
+  args.with_defaults(:first_arg=>"Foo", :second_arg=>"bar")   
+  puts "here is the dependant task with its args"
+  puts "the first arg is #{args.first_arg}"
+  puts "the first arg is #{args.second_arg}"
+  
+end
+

@@ -1,5 +1,9 @@
-set :application, 'my app name'
-set :repo_url, 'git@example.com:me/my_repo.git'
+set :application, 'asphalt-aardvark'
+set :repo_url, 'git@github.com:nerfmiester/asphalt-aardvark.git'
+set :ssh_options, { :forward_agent => true }
+set :branch, 'master'
+set :repository_cache, "git_cache"
+set :deploy_via, :remote_cache
 
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }
 
