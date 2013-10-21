@@ -1,0 +1,8 @@
+global:
+  ssh_port: 22 
+hosts:
+  all:
+    ip: 127.0.0.1
+    manifest: init/app.pp
+
+

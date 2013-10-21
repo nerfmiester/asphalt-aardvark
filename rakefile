@@ -1,5 +1,13 @@
+require 'erb'
+require File.dirname(__FILE__) + '/lib/host'
+require File.dirname(__FILE__) + '/lib/environment_yml'
+require File.dirname(__FILE__) + '/lib/cap'
+require File.dirname(__FILE__) + '/lib/puppet'
+require File.dirname(__FILE__) + '/lib/executable_command'
+
+
 desc "this is a rake task"
-task :task1 do
+task :create_capfile do
    puts "you did a task"
 end
 
@@ -7,7 +15,7 @@ task :task2 do
    puts "you did a second task"
 end
 
-task :task3, [:first_arg, :second_arg] => ["task1" , "task2"] do |t, args|
+task :deploy_app, [:application, :server] => ["create_capfile" , "run_cap"] do |t, args|
   args.with_defaults(:first_arg=>"Foo", :second_arg=>"bar")   
   puts "here is the dependant task with its args"
   puts "the first arg is #{args.first_arg}"
